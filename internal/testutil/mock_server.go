@@ -281,14 +281,14 @@ func (m *MockServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 	m.requestCountMu.Unlock()
 
 	// Check max concurrent requests
-	if m.MaxConcurrentReqs > 0 && m.ActiveRequests.Load() >= int64(m.MaxConcurrentReqs) {
+	if m.MaxConcurrentReqs > 0 && m.ActiveRequests.Load() > int64(m.MaxConcurrentReqs) {
 		m.FailedRequests.Add(1)
 		http.Error(w, "Too many requests", http.StatusTooManyRequests)
 		return
 	}
 
 	// Fail on Nth request if configured
-	if m.FailOnNthRequest > 0 && reqNum >= m.FailOnNthRequest {
+	if m.FailOnNthRequest > 0 && reqNum == m.FailOnNthRequest {
 		m.FailedRequests.Add(1)
 		http.Error(w, "Simulated failure", http.StatusInternalServerError)
 		return
@@ -317,7 +317,7 @@ func (m *MockServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 
 		// Parse "bytes=start-end"
 		var err error
-		start, end, err = parseRange(rangeHeader, m.FileSize-1)
+		start, end, err = parseRange(rangeHeader, m.FileSize)
 		if err != nil {
 			http.Error(w, "Invalid range", http.StatusRequestedRangeNotSatisfiable)
 			return
@@ -336,7 +336,7 @@ func (m *MockServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Serve data
-	length := end - start
+	length := end - start + 1
 	bytesWritten := int64(0)
 
 	// Write in chunks to support byte latency and fail-after-bytes
