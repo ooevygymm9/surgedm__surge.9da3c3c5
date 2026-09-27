@@ -704,7 +704,7 @@ func (p *Scheduler) worker() {
 
 		// A clean pause outcome only occurs on typed ErrPaused or when a pause was requested
 		// and the download terminated due to context cancellation.
-		isPauseResult := errors.Is(err, types.ErrPaused) || (isPaused && errors.Is(err, context.Canceled))
+		isPauseResult := errors.Is(err, types.ErrPaused) || (isPaused && (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)))
 
 		if err == nil {
 			// Physical success takes precedence over late-arriving pause signals.
@@ -712,7 +712,7 @@ func (p *Scheduler) worker() {
 			if localCfg.ProgressState != nil {
 				prog := progress.CfgProgress(&localCfg)
 				prog.Paused.Store(false)
-				prog.Done.Store(false)
+				prog.Done.Store(true)
 			}
 			p.mu.Lock()
 			delete(p.downloads, localCfg.ID)
@@ -726,6 +726,7 @@ func (p *Scheduler) worker() {
 			delete(p.downloads, localCfg.ID)
 
 			if shouldRetryFailedDownload(p.isShuttingDown, err, qt.retries) {
+				qt.retries++
 				retryDelay := time.Second * time.Duration(qt.retries)
 				qt.inFlight = true // Keep in-flight while sending progress outside lock
 				qt.cfg = localCfg
@@ -810,6 +811,7 @@ func (p *Scheduler) worker() {
 			if !isCancel && localCfg.ProgressState != nil {
 				progress.CfgProgress(&localCfg).SetError(err)
 			}
+			delete(p.downloadLimiters, localCfg.ID)
 			p.mu.Unlock()
 
 			// Send outside the lock: safeSendProgress may block on a full
