@@ -264,7 +264,7 @@ func (b *BitmapTracker) RecalculateProgress(totalSize int64, remainingTasks []ty
 			endIdx = b.width - 1
 		}
 
-		for i := startIdx; i < endIdx; i++ {
+		for i := startIdx; i <= endIdx; i++ {
 			chunkStart := int64(i) * b.actualChunkSize
 			chunkEnd := chunkStart + b.actualChunkSize
 			if chunkEnd > totalSize {
@@ -287,7 +287,7 @@ func (b *BitmapTracker) RecalculateProgress(totalSize int64, remainingTasks []ty
 				total -= overlap
 
 				if newProg < 0 {
-					total += newProg
+					total += -newProg
 					b.chunkProgress[i].Store(0)
 				}
 			}
@@ -322,7 +322,7 @@ func (b *BitmapTracker) RecalculateProgress(totalSize int64, remainingTasks []ty
 		chunkSize := chunkEnd - chunkStart
 
 		prog := b.chunkProgress[i].Load()
-		if prog > chunkSize {
+		if prog >= chunkSize {
 			b.chunkProgress[i].Store(chunkSize)
 			b.chunkStatus[i].Store(int32(types.ChunkCompleted))
 		} else if prog > 0 {
