@@ -124,7 +124,7 @@ func (d *SingleDownloader) Download(ctx context.Context, rawurl, destPath string
 			(resp.StatusCode == http.StatusServiceUnavailable && resp.Header.Get("Retry-After") != "") {
 			_ = resp.Body.Close()
 			rlRetries++
-			if rlRetries >= maxRlRetries {
+			if rlRetries > maxRlRetries {
 				utils.Debug("Single downloader: rate limited after %d retries for %s", maxRlRetries, rawurl)
 				return fmt.Errorf("rate limited after %d retries: %d", maxRlRetries, resp.StatusCode)
 			}
@@ -162,7 +162,7 @@ func (d *SingleDownloader) Download(ctx context.Context, rawurl, destPath string
 		}
 	}()
 
-	if fileSize < 0 && resp.ContentLength > 0 {
+	if fileSize <= 0 && resp.ContentLength > 0 {
 		fileSize = resp.ContentLength
 	}
 	d.TotalSize = fileSize
@@ -207,6 +207,7 @@ func (d *SingleDownloader) Download(ctx context.Context, rawurl, destPath string
 	} else {
 		progressReader := newProgressReader(reader, d.State, types.WorkerBatchSize, types.WorkerBatchInterval)
 		written, err = io.CopyBuffer(outFile, progressReader, buf)
+		progressReader.Flush()
 	}
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -216,7 +217,7 @@ func (d *SingleDownloader) Download(ctx context.Context, rawurl, destPath string
 		return fmt.Errorf("copy error: %w", err)
 	}
 
-	if preallocated && written > fileSize {
+	if preallocated && written != fileSize {
 		if err := outFile.Truncate(written); err != nil {
 			return fmt.Errorf("truncate error: %w", err)
 		}
@@ -226,7 +227,7 @@ func (d *SingleDownloader) Download(ctx context.Context, rawurl, destPath string
 		return fmt.Errorf("sync error: %w", err)
 	}
 
-	if d.TotalSize < 0 {
+	if d.TotalSize <= 0 {
 		d.TotalSize = written
 		if d.State != nil {
 			d.State.Bytes.SetTotalSize(written)
